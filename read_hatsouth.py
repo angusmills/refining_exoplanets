@@ -28,11 +28,18 @@ def trim_data(dataframe):
                        'qual1', 'qual2', 'qual3']
     return trimmed
 
+def plot_full_curve(time, magnitude):
+    """
+    plot full  
+    """
+    plt.plot(time, magnitude)
+    plt.scatter(time, magnitude, s=5)
+    plt.show()
+
 if __name__ == '__main__':
 
-    wasp31 = load_data('WASP-31b-HAT-563-0001900.tfalc')
+    wasp31_raw = load_data('WASP-31b-HAT-563-0001900.tfalc')
 
-    trimmed = trim_data(wasp31)
-    
-    plt.plot(trimmed.iloc[:, 0], trimmed.iloc[:, 1])
-    plt.show()
+    wasp31 = trim_data(wasp31_raw)
+
+    plot_full_curve(wasp31.iloc[:,0], wasp31.iloc[:, 1])
