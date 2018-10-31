@@ -1,0 +1,70 @@
+##################################
+### CORRECTED TO START AT ZERO ###
+##################################
+
+0:HAT-ID
+
+1:Image identifier (e.g., 4-267076_3; here the 4- indicates this image comes from the HS-4 unit, 267076 is the unique exposure number for that unit, and _3 indicates that this came from camera number 3).
+
+2:Observed field name (e.g., G0400-2230_548; this is the full name for the field, including central RA and Dec, as stored in the HS database, the format is GHHMM(+-)DDMM_FIELDNUM)
+
+3:BJD - 2400000.  Note that the BJD correction has been applied using the RA, Dec position of the star, but the conversion is done from UTC without TDB correction.
+
+4:Raw Mag aperture 1 <-- we measure things in three fixed apertures (ap 1 is the smallest). 
+  This is the raw magnitude, without any correction to any
+  comparison star.
+
+5: Mag error aperture 1  <--- the magnitude error that we should use
+   for this measurement.
+
+6: Quality Flag aperture 1 <-- either G = good, X = bad, S = saturated, or this may be 0, 1, 2 (0 = Good).
+
+7:Raw Mag aperture 2
+
+8: Mag error aperture 2
+
+9: Quality Flag aperture 2
+
+10: Raw Mag aperture 3
+
+11: Mag error aperture 3
+
+12: Quality Flag aperture 3
+
+13: Fit mag aperture 1  <-- after applying an ensemble magnitude correction (i.e., fitting for the magnitude zero point of the image assuming a function that is smooth in variables like the X and Y position on the camera and the color of the star). For large amplitude variable stars this is probably the best magnitude value to use.
+
+14: Fit mag aperture 2
+
+15: Fit mag aperture 3
+
+16: Magnitude after external parameter decorrelation (EPD) aperture 1; Light curves are assumed to be intrinsically non-variable. The EPD function used has the format: a11*sin(2*pi*X)+a22*cos(2*pi*X)+c11*sin(4*pi*X)+c22*cos(4*pi*X)+b11*sin(2*pi*Y)+b22*cos(2*pi*Y)+d11*sin(4*pi*Y)+d22*cos(4*pi*Y)+bg1*BG+b*S+a*S^2+d*D+c*D^2+f*K+e*K^2+h1*HA+z1*Z
+
+17: Magnitude after external parameter decorrelation (EPD) aperture 2;
+
+18: Magnitude after external parameter decorrelation (EPD) aperture 3;
+
+19: Magnitude after TFA detrending aperture 1;
+
+20: Magnitude after TFA detrending aperture 2;
+
+21: Magnitude after TFA detrending aperture 3;
+
+22: X position of the star in the image
+
+23: Y position of the star in the image
+
+24: background counts in ADU
+
+25: standard deviation of the background
+
+26: S (PSF shape parameter, inversely proportional to the width of the PSF)
+
+27: D (PSF shape parameter)
+
+28: K (PSF shape parameter)
+
+29: Hour angle of observation
+
+30: Zenith distance of observation
+
+31: JD - 2400000 (JD = julian date without barycentric correction; this is caculated from UTC without correcting for leap seconds).
