@@ -56,16 +56,9 @@ def phase_fold(dataframe, period, phase=0):
     folded_time = ((time_vals - phase)/period) % 1 - 0.5
     # short explanation:
     # time values - phase (offset to move the 'dip' to zero)
-    # +half period ? some algorithms found online do this idk why ????
     # /period div by period in order to find where in the orbit a point is
     # remainer div % 1, sets every value to be between 0, 1
     # -0.5, simply moves it to -0.5 to 0.5, so centre is at 0
-
-
-    # print (folded_time)
-
-    # print(phases, epoch)
-    print (folded_time)
     return folded_time
 
 if __name__ == '__main__':
@@ -78,8 +71,7 @@ if __name__ == '__main__':
     wasp31_raw = load_wasp('WASP-31_WASP_WASP_a.rdb')
     wasp31 = wasp31_raw
 
-    wasp31_period = 3.405909 # days converted to seconds
-    print (wasp31_period)
+    wasp31_period = 3.405909 # period, in days
     wasp31_folded = phase_fold(wasp31, wasp31_period)
 
     plot_full_curve(wasp31_folded, wasp31.iloc[:, 1])
