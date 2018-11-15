@@ -3,7 +3,6 @@ script to read in and plot hatsouth light curves
 """
 import os
 import sys
-from PyAstronomy.pyasl import foldAt
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -37,23 +36,25 @@ def trim_data(dataframe):
                        'qual1', 'qual2', 'qual3']
     return trimmed
 
-def plot_full_curve(time, magnitude):
+def plot_curve(time, magnitude, binned=0, n=5):
     """
     plot entire dataset for chosen magnitude/aperture
     """
-    # plt.plot(time, magnitude)
+    if binned == 1:
+        samples = len(magnitude)
+        iterations = len(range(samples))//n
+        time = time.rolling(n).mean()
+        magnitude = magnitude.rolling(n).mean()
+
     plt.scatter(time, magnitude, s=1)
     plt.show()
 
-def phase_fold(dataframe, period, phase=0):
+def phase_fold(time, period, phase=0):
     """
     fold time values, using known period
     """
-    time_vals = dataframe.iloc[:, 0]
-    mintime = time_vals.min()
-    time_vals -= mintime
-    print(time_vals)
-    folded_time = ((time_vals - phase)/period) % 1 - 0.5
+    time -= time.min()
+    folded_time = ((time)/period+phase) % 1 - 0.5
     # short explanation:
     # time values - phase (offset to move the 'dip' to zero)
     # /period div by period in order to find where in the orbit a point is
@@ -61,17 +62,49 @@ def phase_fold(dataframe, period, phase=0):
     # -0.5, simply moves it to -0.5 to 0.5, so centre is at 0
     return folded_time
 
+def mag_to_flux(mag):
+    flux = 10**(-mag/2.5)
+    return flux
+
+def to_normalized_flux(magnitude):
+    """
+    WASP and HATS have 'brightness' measures in different units
+    function changes magnitude to normalized flux, to compare both curves
+    """
+    flux = magnitude.apply(mag_to_flux)
+    avg = flux.mean()
+    flux /= avg
+    return flux
+
+# def optimize_phase():
+
 if __name__ == '__main__':
 
     # FOR HATS RAW DATA
-    wasp31_raw = load_hats('WASP-31b-HAT-563-0001900.tfalc')
-    wasp31 = trim_data(wasp31_raw)
+    hats_wasp31_raw = load_hats('WASP-31b-HAT-563-0001900.tfalc')
+    hats_wasp31 = trim_data(hats_wasp31_raw)
 
     # FOR WASP RAW DATA
-    wasp31_raw = load_wasp('WASP-31_WASP_WASP_a.rdb')
-    wasp31 = wasp31_raw
+    wasp_wasp31_raw = load_wasp('WASP-31_WASP_WASP_a.rdb')
+    wasp_wasp31 = wasp_wasp31_raw
 
     wasp31_period = 3.405909 # period, in days
-    wasp31_folded = phase_fold(wasp31, wasp31_period)
+    hats_wasp31_folded = phase_fold(hats_wasp31.iloc[:, 0], wasp31_period, phase=0.4)
+    wasp_wasp31_folded = phase_fold(wasp_wasp31.iloc[:, 0], wasp31_period, phase=0.275)
 
-    plot_full_curve(wasp31_folded, wasp31.iloc[:, 1])
+    hats_wasp31.loc[:, 'mag1'] = to_normalized_flux(hats_wasp31['mag1'])
+
+    plt.scatter(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], s=5)
+    plt.scatter(hats_wasp31_folded, hats_wasp31.iloc[:, 1], s=5)
+    plt.show()
+
+    plot_curve(hats_wasp31_folded, hats_wasp31.iloc[:, 1], binned=1)
+    plot_curve(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], binned=1)
+
+# TODO: convert flux/magnitude DONE
+#       plot both on one axis DONE
+#       find method to centre phase folded times to zero
+#       'score' each period change to find optimal refined period
+#       plot error bars
+#       fix dataframe warning message
+#       order times+flux according to times
