@@ -54,9 +54,9 @@ def phase_fold(time, period, phase=0):
     fold time values, using known period
     """
     time -= time.min()
-    folded_time = ((time)/period+phase) % 1 - 0.5
+    folded_time = ((time-phase)/period) % 1 - 0.5
     # short explanation:
-    # time values - phase (offset to move the 'dip' to zero)
+    # time values - phase (offset to move the 'dip' to zero) phase in days
     # /period div by period in order to find where in the orbit a point is
     # remainer div % 1, sets every value to be between 0, 1
     # -0.5, simply moves it to -0.5 to 0.5, so centre is at 0
@@ -76,8 +76,6 @@ def to_normalized_flux(magnitude):
     flux /= avg
     return flux
 
-# def optimize_phase():
-
 if __name__ == '__main__':
 
     # FOR HATS RAW DATA
@@ -88,9 +86,9 @@ if __name__ == '__main__':
     wasp_wasp31_raw = load_wasp('WASP-31_WASP_WASP_a.rdb')
     wasp_wasp31 = wasp_wasp31_raw
 
-    wasp31_period = 3.405909 # period, in days
-    hats_wasp31_folded = phase_fold(hats_wasp31.iloc[:, 0], wasp31_period, phase=0.4)
-    wasp_wasp31_folded = phase_fold(wasp_wasp31.iloc[:, 0], wasp31_period, phase=0.275)
+    wasp31_period = 3.4059096 # period, in days
+    hats_wasp31_folded = phase_fold(hats_wasp31.iloc[:, 0], wasp31_period, phase=2455192.6887)
+    wasp_wasp31_folded = phase_fold(wasp_wasp31.iloc[:, 0], wasp31_period, phase=2455192.6887)
 
     hats_wasp31.loc[:, 'mag1'] = to_normalized_flux(hats_wasp31['mag1'])
 
@@ -98,10 +96,10 @@ if __name__ == '__main__':
     plt.scatter(hats_wasp31_folded, hats_wasp31.iloc[:, 1], s=5)
     plt.show()
 
-    plot_curve(hats_wasp31_folded, hats_wasp31.iloc[:, 1], binned=1)
-    plot_curve(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], binned=1)
+    plot_curve(hats_wasp31_folded, hats_wasp31.iloc[:, 1], binned=0)
+    plot_curve(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], binned=0)
 
-# TODO: convert flux/magnitude DONE
+# TODO: find Tc, or method to use found mid-points
 #       plot both on one axis DONE
 #       find method to centre phase folded times to zero
 #       'score' each period change to find optimal refined period
