@@ -1,85 +1,108 @@
 """
-Class definitions for star light curves
+script to read in and plot hatsouth light curves
 """
 import os
+import sys
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
+def load_hats(filename):
+    """
+    load full file of chosen HATSouth dataset into df
+    """
+    filepath = os.path.join(os.getcwd(), 'data', filename)
+    input_data = pd.read_csv(filepath, delim_whitespace=True, skiprows=[0])
+    return input_data
+
+def load_wasp(filename):
+    """
+    load full file of chosen WASP dataset into df
+    """
+    filepath = os.path.join(os.getcwd(), 'data', filename)
+    input_data = pd.read_csv(filepath, delim_whitespace=True, skiprows=25)
+    return input_data
+
+def trim_data(dataframe):
+    """
+    datafiles have huge amount of data
+    trim dataframe to only have relevant data
+    """
+    trimmed = dataframe.iloc[:, [3, 19, 20, 21, 5, 8, 11, 6, 9, 12]]
+    trimmed.columns = ['BJD',
+                       'mag1', 'mag2', 'mag3',
+                       'err1', 'err2', 'err3',
+                       'qual1', 'qual2', 'qual3']
+    return trimmed
+
+def plot_curve(time, magnitude, binned=0, n=5):
+    """
+    plot entire dataset for chosen magnitude/aperture
+    """
+    if binned == 1:
+        samples = len(magnitude)
+        iterations = len(range(samples))//n
+        time = time.rolling(n).mean()
+        magnitude = magnitude.rolling(n).mean()
+
+    plt.scatter(time, magnitude, s=1)
+    plt.show()
+
+def phase_fold(time, period, phase=0):
+    """
+    fold time values, using known period
+    """
+    time -= time.min()
+    folded_time = ((time-phase)/period) % 1 - 0.5
+    # short explanation:
+    # time values - phase (offset to move the 'dip' to zero) phase in days
+    # /period div by period in order to find where in the orbit a point is
+    # remainer div % 1, sets every value to be between 0, 1
+    # -0.5, simply moves it to -0.5 to 0.5, so centre is at 0
+    return folded_time
+
 def mag_to_flux(mag):
-    """
-    applies equation for magnitude to flux conversion, then normalizes around 1
-    """
-    flux = mag.apply(lambda x: 10**(-x/2.5))
-    flux /= flux.mean()
+    flux = 10**(-mag/2.5)
     return flux
 
-class Star():
+def to_normalized_flux(magnitude):
     """
-    A set of data for one star
-    support for both HATSouth and WASP light curves
+    WASP and HATS have 'brightness' measures in different units
+    function changes magnitude to normalized flux, to compare both curves
     """
-    def __init__(self, name, period, Tc, duration):
-        """
-        Reads relevant data, calculates normalized flux (hats only), and
-        phase folds time series
-        """
-        self.name = name
-        self.hats_id = 1
-        self.period = period
-        self.Tc = Tc
-        self.duration = duration
-        self.phase_offset = 0.25
+    flux = magnitude.apply(mag_to_flux)
+    avg = flux.mean()
+    flux /= avg
+    return flux
 
-        # load datasets
-        data_path = os.path.join(os.getcwd(), 'data')
-        hats_path = os.path.join(data_path, 'hats', (self.name+".tfalc"))
-        wasp_path = os.path.join(data_path, 'wasp', (self.name+".rdb"))
+def main_func(HATSname, WASPname, period, HATSphase, WASPphase):
 
-        self.hats = pd.read_csv(hats_path,
-                                delim_whitespace=True,
-                                skiprows=1,
-                                header=None,
-                                usecols=[3, 19, 20, 21, 5, 8, 11, 6, 9, 12],
-                                names=['BJD',
-                                       'err1', 'qual1',
-                                       'err2', 'qual2',
-                                       'err3', 'qual3',
-                                       'mag1', 'mag2', 'mag3'])
-        self.wasp = pd.read_csv(wasp_path,
-                                delim_whitespace=True,
-                                skiprows=24,
-                                names=['BJD', 'flux', 'flux_err', 'filter'])
+    # FOR HATS RAW DATA
+    hats_wasp_raw = load_hats(HATSname)
+    hats_wasp = trim_data(hats_wasp_raw)
 
-        # Calculate normalized flux, for equal comparisons between HATS/WASP
-        for i in [1, 2, 3]:
-            self.hats['flux'+str(i)] = mag_to_flux(self.hats['mag'+str(i)])
+    # FOR WASP RAW DATA
+    wasp_wasp_raw = load_wasp(WASPname)
+    wasp_wasp = wasp_wasp_raw
 
-        # Phase folding, according to given phase, Tc
-        self.wasp['phase'] = ((self.wasp['BJD']+2400000-self.Tc)
-                              /self.period+self.phase_offset) % 1
-        self.hats['phase'] = ((self.hats['BJD']+2400000-self.Tc)
-                              /self.period+self.phase_offset) % 1
+    wasp_period = period # period, in days
+    hats_wasp_folded = phase_fold(hats_wasp.iloc[:, 0], wasp_period, phase=HATSphase)
+    wasp_wasp_folded = phase_fold(wasp_wasp.iloc[:, 0], wasp_period, phase=WASPphase)
 
-    def plot(self, source="both", bins=None):
-        """
-        Graph of phase folded data for chosen telescope sources
-        """
-        # OLD BIN CODE: not functional currently
-        # if bins != None:
-        #     samples = len(magnitude)
-        #     iterations = len(range(samples))//bins
-        #     time = time.rolling(bins).mean()
-        #     magnitude = magnitude.rolling(bins).mean()
-        # BINS NEEDS REFACTORING TO BE TIME DEPENDENT...
-        if source != "hats":
-            plt.scatter(self.wasp['phase'],
-                        self.wasp['flux'],
-                        s=1)
-        if source != "wasp":
-            plt.scatter(self.hats['phase'],
-                        self.hats['flux'+str(self.hats_id)],
-                        s=1)
-        plt.show()
+    hats_wasp.loc[:, 'mag1'] = to_normalized_flux(hats_wasp['mag1'])
 
-WASP_31 = Star("WASP-31", 3.4059096, 2455192.6887, 0)
-WASP_31.plot()
+    plt.scatter(wasp_wasp_folded, wasp_wasp.iloc[:, 1], s=5)
+    plt.scatter(hats_wasp_folded, hats_wasp.iloc[:, 1], s=5)
+    plt.show()
+
+    plot_curve(hats_wasp_folded, hats_wasp.iloc[:, 1], binned=0)
+    plot_curve(wasp_wasp_folded, wasp_wasp.iloc[:, 1], binned=0)
+
+# TODO: find Tc, or method to use found mid-points
+#       plot both on one axis DONE
+#       find method to centre phase folded times to zero
+#       'score' each period change to find optimal refined period
+#       plot error bars
+#       fix dataframe warning message
+#       order times+flux according to times
