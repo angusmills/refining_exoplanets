@@ -76,28 +76,28 @@ def to_normalized_flux(magnitude):
     flux /= avg
     return flux
 
-if __name__ == '__main__':
+def main_func(HATSname, WASPname, period, HATSphase, WASPphase):
 
     # FOR HATS RAW DATA
-    hats_wasp31_raw = load_hats('WASP-31b-HAT-563-0001900.tfalc')
-    hats_wasp31 = trim_data(hats_wasp31_raw)
+    hats_wasp_raw = load_hats(HATSname)
+    hats_wasp = trim_data(hats_wasp_raw)
 
     # FOR WASP RAW DATA
-    wasp_wasp31_raw = load_wasp('WASP-31_WASP_WASP_a.rdb')
-    wasp_wasp31 = wasp_wasp31_raw
+    wasp_wasp_raw = load_wasp(WASPname)
+    wasp_wasp = wasp_wasp_raw
 
-    wasp31_period = 3.4059096 # period, in days
-    hats_wasp31_folded = phase_fold(hats_wasp31.iloc[:, 0], wasp31_period, phase=2455192.6887)
-    wasp_wasp31_folded = phase_fold(wasp_wasp31.iloc[:, 0], wasp31_period, phase=2455192.6887)
+    wasp_period = period # period, in days
+    hats_wasp_folded = phase_fold(hats_wasp.iloc[:, 0], wasp_period, phase=HATSphase)
+    wasp_wasp_folded = phase_fold(wasp_wasp.iloc[:, 0], wasp_period, phase=WASPphase)
 
-    hats_wasp31.loc[:, 'mag1'] = to_normalized_flux(hats_wasp31['mag1'])
+    hats_wasp.loc[:, 'mag1'] = to_normalized_flux(hats_wasp['mag1'])
 
-    plt.scatter(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], s=5)
-    plt.scatter(hats_wasp31_folded, hats_wasp31.iloc[:, 1], s=5)
+    plt.scatter(wasp_wasp_folded, wasp_wasp.iloc[:, 1], s=5)
+    plt.scatter(hats_wasp_folded, hats_wasp.iloc[:, 1], s=5)
     plt.show()
 
-    plot_curve(hats_wasp31_folded, hats_wasp31.iloc[:, 1], binned=0)
-    plot_curve(wasp_wasp31_folded, wasp_wasp31.iloc[:, 1], binned=0)
+    plot_curve(hats_wasp_folded, hats_wasp.iloc[:, 1], binned=0)
+    plot_curve(wasp_wasp_folded, wasp_wasp.iloc[:, 1], binned=0)
 
 # TODO: find Tc, or method to use found mid-points
 #       plot both on one axis DONE
