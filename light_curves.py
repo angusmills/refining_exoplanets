@@ -21,28 +21,30 @@ def mag_to_flux(mag):
     flux /= flux.mean()
     return flux
 
-def bin_by_size(phase, flux, num_of_bins=25):
+def bin_by_size(dataset, num_of_bins=15):
     """
-    splits series into specified num of binned points, w.r.t. 
+    splits series into specified num of binned points, w.r.t.
+    INPUT REQUIRES: pd DataFrame with 'phase' column
+                    do not input text columns: eg 'filter' column (=WASP)
+                    no mean can be calculated, causing unexpected mean behaviour
     """
-    binned = []
-    dataset = pd.concat([phase, flux], axis=1)
-    dataset.columns = ['phase', 'flux']
-    length = phase.max()-phase.min()
+    cols = dataset.columns.values
+    binned = pd.DataFrame(columns=cols)
+    length = dataset['phase'].max()-dataset['phase'].min()
     bin_time = length/num_of_bins
-    lower_bound = phase.min()
+    lower_bound = dataset['phase'].min()
     upper_bound = lower_bound + bin_time
-    for i in range(num_of_bins):
-        points = dataset[(phase > lower_bound) &
-                    (phase < upper_bound)]
-        avgphase = points['phase'].mean()
-        avgflux = points['flux'].mean()
-        point = [avgphase, avgflux]
-        binned.append(point)
+
+    for _ in range(num_of_bins):
+        points = dataset.loc[(dataset['phase'] > lower_bound) &
+                             (dataset['phase'] < upper_bound)]
+
+        averages = points.mean()
+        binned = binned.append(pd.Series(averages), ignore_index=True)
         lower_bound = upper_bound
         upper_bound = lower_bound + bin_time
 
-    binned = pd.DataFrame(binned, columns=['phase', 'flux'])
+    print (binned)
     return binned
 
 class Star():
@@ -89,26 +91,16 @@ class Star():
         # Phase folding, according to given phase, Tc
         self.wasp['phase'] = (((self.wasp['BJD']+2400000-self.Tc)
                                /self.period+self.phase_offset)
-                               %1 - self.phase_offset)
+                              %1 - self.phase_offset)
         self.hats['phase'] = (((self.hats['BJD']+2400000-self.Tc)
                                /self.period+self.phase_offset)
-                               %1 - self.phase_offset)
+                              %1 - self.phase_offset)
         # bin_by_size(self.wasp['phase'], self.wasp['flux'], num_of_bins=500)
 
-    def plot(self, source="both", bins=None):
+    def plot(self, source="both"):
         """
         Graph of phase folded data for chosen telescope sources
         """
-        # OLD BIN CODE: not functional currently
-        # if bins != None:
-        #     samples = len(magnitude)
-        #     iterations = len(range(samples))//bins
-        #     time = time.rolling(bins).mean()
-        #     magnitude = magnitude.rolling(bins).mean()
-        # BINS NEEDS REFACTORING TO BE TIME DEPENDENT...
-        if bins != None:
-            #TODO: create temp arrays where data is binned by phase/bins
-            raise NotImplementedError
         plt.figure(figsize=(3, 2.2))
         if source != "hats":
             plt.plot(self.wasp['phase'],
@@ -168,7 +160,7 @@ class Star():
         """
         plt.figure(figsize=(3, 2.2))
         if source != "hats":
-            binned = bin_by_size(self.wasp['phase'], self.wasp['flux'])
+            binned = bin_by_size(self.wasp)
             plt.plot(binned['phase'],
                      binned['flux'],
                      'x-',
@@ -178,7 +170,8 @@ class Star():
                      linewidth=1,
                      c='black')
         if source != "wasp":
-            binned = bin_by_size(self.hats['phase'], self.hats['flux'+str(self.hats_id)])
+            hats_set = self.hats.rename(columns={'flux'+str(self.hats_id):'flux'})
+            binned = bin_by_size(hats_set[['phase', 'flux']])
             plt.plot(binned['phase'],
                      binned['flux'],
                      'x-',
@@ -191,7 +184,8 @@ class Star():
         plt.xlabel("Binned Phase")
         plt.ylabel("Normalized Flux")
         plt.tight_layout(.5)
-        plt.savefig("graphs/binned/"+self.name, dpi=300)
+        # plt.savefig("graphs/binned/"+self.name, dpi=300)
+        plt.show()
 
     def std(self):
         """
@@ -199,10 +193,10 @@ class Star():
         Ignores data around transit (0.1 width phase centered on Tc)
         """
         wasp_std = (self.wasp[(self.wasp['phase'] > 0.3) |
-                    (self.wasp['phase'] < 0.2)]
+                              (self.wasp['phase'] < 0.2)]
                     ['flux'].std())
         hats_std = (self.hats[(self.hats['phase'] > 0.3) |
-                    (self.hats['phase'] < 0.2)]
+                              (self.hats['phase'] < 0.2)]
                     ['flux'+str(self.hats_id)].std())
         print("For "+self.name+":")
         print("STD of WASP data:", wasp_std, "\nSTD of HATS data:", hats_std)
@@ -213,18 +207,37 @@ class Star():
         converts file to format correct for exofast online interface
         TODO: attempts to bin the data into <5000 datapoints due to
         limitation of website compute resources
-        TODO: combined file
         """
-        exo_path = os.path.join(os.getcwd(), 'exofast')
+        exo_path = os.path.join(os.getcwd(), 'exofast_basic')
         waspfile = os.path.join(exo_path, self.name+"WASP.txt")
         hatsfile = os.path.join(exo_path, self.name+"HATS.txt")
         with open(waspfile, 'w') as f:
             for i in range(5000):
-                f.write('%.5f,%.5f,%.5f' 
+                f.write('%.5f,%.5f,%.5f'
                         % (self.wasp['BJD'][i],
                            self.wasp['flux'][i],
                            self.wasp['flux_err'][i]))
                 f.write('\n')
+
+    def combine_observations(self):
+        """
+        groups data from both observations into one
+        this can then be binned to 5000 points for EXOFAST input
+        """
+        wasp_obs = self.wasp[['BJD', 'phase', 'flux', 'flux_err']]
+        hats_obs = self.hats[['BJD', 'phase',
+                              'flux'+str(self.hats_id),
+                              'err'+str(self.hats_id)]]
+        hats_obs.columns = ['BJD', 'phase', 'flux', 'flux_err']
+        combined = wasp_obs.append(hats_obs, ignore_index=True)
+
+        print (combined)
+
+        # saving trimmed combined dataset
+        # exo_path = os.path.join(os.getcwd(), 'exofast_combined')
+        # self.combined.to_csv()
+
+
 
 # STAR DATA:    NAME      PERIOD     Tc            Duration (hats_id)
 WASP_6 = Star("WASP-6", 3.36100208,	2454425.02180, 0.10860)
@@ -234,7 +247,9 @@ WASP_83 = Star("WASP-83", 4.971252, 2455928.8853, 0.1402)
 WASP_101 = Star("WASP-101", 3.585720, 2456164.6934, 0.113)
 
 STARS = [WASP_6, WASP_31, WASP_67, WASP_83, WASP_101]
-# STARS = [WASP_31]
+STARS = [WASP_31]
 
 for star in STARS:
-    star.plot_binned(source='both')
+    # print (star.wasp)
+    # star.combine_observations()
+    star.plot_binned()
