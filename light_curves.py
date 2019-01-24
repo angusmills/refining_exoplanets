@@ -222,7 +222,8 @@ class Star():
     def combine_observations(self):
         """
         groups data from both observations into one
-        this can then be binned to 5000 points for EXOFAST input
+        this can then be reduced to 5000 points for EXOFAST input limit
+        dropping data outside transits can reduce the number of points
         """
         wasp_obs = self.wasp[['BJD', 'phase', 'flux', 'flux_err']]
         hats_obs = self.hats[['BJD', 'phase',
@@ -231,12 +232,30 @@ class Star():
         hats_obs.columns = ['BJD', 'phase', 'flux', 'flux_err']
         combined = wasp_obs.append(hats_obs, ignore_index=True)
 
-        print (combined)
+        half_width = 0.20
+        trim_len = 1e10
+        while (trim_len > 5000):
+            trimmed = combined.loc[(combined['phase'] > -half_width) &
+                                   (combined['phase'] < half_width)]
+            trim_len = len(trimmed)
+            print (trim_len, half_width, "      ", end="\r")
+            half_width -= 0.0001
 
-        # saving trimmed combined dataset
-        # exo_path = os.path.join(os.getcwd(), 'exofast_combined')
-        # self.combined.to_csv()
+        print ("Combined dataset for "+self.name+" trimmed to "+str(trim_len)+" points.")
 
+        trimmed.reset_index(drop=True, inplace=True)
+
+        exo_path = os.path.join(os.getcwd(), 'exofast_combined')
+        trim_file = os.path.join(exo_path, self.name+".txt")
+        with open(trim_file, 'w') as f:
+            for i in range(trim_len):
+                f.write('{0},{1},{2}'.format(trimmed['BJD'][i],
+                                             trimmed['flux'][i],
+                                             trimmed['flux_err'][i]))
+                f.write('\n')
+
+        plt.scatter(trimmed['phase'], trimmed['flux'], s=1)
+        plt.show()
 
 
 # STAR DATA:    NAME      PERIOD     Tc            Duration (hats_id)
@@ -247,9 +266,7 @@ WASP_83 = Star("WASP-83", 4.971252, 2455928.8853, 0.1402)
 WASP_101 = Star("WASP-101", 3.585720, 2456164.6934, 0.113)
 
 STARS = [WASP_6, WASP_31, WASP_67, WASP_83, WASP_101]
-STARS = [WASP_31]
+# STARS = [WASP_31]
 
 for star in STARS:
-    # print (star.wasp)
-    # star.combine_observations()
-    star.plot_binned()
+    star.combine_observations()
